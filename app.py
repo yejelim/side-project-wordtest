@@ -70,7 +70,7 @@ def run_test(words):
     for index, row in words.iterrows():
         meaning = row['meaning']
         correct_word = row['word']
-        user_answer = st.text_input(f"'{meaning}'의 영어 단어는?", key=f"word_{index}")
+        user_answer = st.text_input(f"'{meaning}'", key=f"word_{index}")
 
         if st.button(f"제출-{index}"):
             if user_answer.lower() == correct_word.lower():
@@ -83,7 +83,7 @@ def run_test(words):
     return incorrect_answers, score, len(words)
 
 # 메인 프로그램
-st.title("영어 단어 테스트")
+st.title("영어 단어 테스트 for 준혁")
 
 # CSV 파일 경로 지정
 file_path = 'words.csv'  # CSV 파일 경로
