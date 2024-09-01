@@ -77,7 +77,7 @@ def run_test(words):
                 st.write("정답!")
                 score += 1
             else:
-                st.write(f"오답! 정답은 '{correct_word}'입니다.")
+                st.write(f"오답! 다시 생각해보세요.")
                 incorrect_answers.append((meaning, user_answer, correct_word))
 
     return incorrect_answers, score, len(words)
