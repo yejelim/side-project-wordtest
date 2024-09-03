@@ -10,8 +10,7 @@ c = conn.cursor()
 c.execute('''
 CREATE TABLE IF NOT EXISTS progress (
     id INTEGER PRIMARY KEY,
-    last_day INTEGER,
-    progress_data TEXT
+    last_day INTEGER
 )
 ''')
 
@@ -37,10 +36,6 @@ if 'day' not in st.session_state:
         st.session_state.day = 1
         c.execute("INSERT INTO progress (id, last_day) VALUES (1, ?)", (st.session_state.day,))
     conn.commit()
-
-# 성취도 초기화
-if 'progress' not in st.session_state:
-    st.session_state.progress = {}
 
 day = st.session_state.day
 
@@ -91,8 +86,7 @@ def load_incorrect_answers(day):
         return None
 
 # 성취도 기록 저장
-def save_progress(day, score, total):
-    st.session_state.progress[day] = {'score': score, 'total': total}
+def save_progress(day):
     c.execute('''
         UPDATE progress
         SET last_day = ?
@@ -102,10 +96,11 @@ def save_progress(day, score, total):
 
 # 성취도 그래프 시각화
 def plot_progress():
-    days = sorted(st.session_state.progress.keys())
-    if days:
-        scores = [st.session_state.progress.get(day, {}).get('score', 0) for day in days]
-        totals = [st.session_state.progress.get(day, {}).get('total', 0) for day in days]
+    if 'progress' in st.session_state:
+        days = sorted(st.session_state.progress.keys())
+        scores = [st.session_state.progress[day]['score'] for day in days]
+        totals = [st.session_state.progress[day]['total'] for day in days]
+        
         st.bar_chart(pd.DataFrame({"Score": scores, "Total": totals}, index=days))
 
 # 테스트 실행
@@ -147,11 +142,13 @@ if not today_words.empty:
         
         if st.button("다음 Day로 이동"):
             st.session_state.day += 1
-            save_progress(st.session_state.day, score, total)
+            save_progress(st.session_state.day)
+            st.experimental_rerun()  # 페이지 새로고침
 
 if st.button("이전 Day로 이동") and day > 1:
     st.session_state.day -= 1
-    save_progress(st.session_state.day, score, total)
+    save_progress(st.session_state.day)
+    st.experimental_rerun()  # 페이지 새로고침
 
 # 성취도 그래프 시각화
 st.write("성취도 그래프를 확인하세요:")
