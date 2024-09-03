@@ -3,10 +3,56 @@ import pandas as pd
 import random
 import os
 import matplotlib.pyplot as plt
+import sqlite3
+
+# SQLite 데이터베이스 설정
+conn = sqlite3.connect('progress.db')
+c = conn.cursor()
+
+# 테이블 생성
+c.execute('''
+CREATE TABLE IF NOT EXISTS progress (
+    id INTEGER PRIMARY KEY,
+    last_day INTEGER,
+    progress_data TEXT
+)
+''')
+
+c.execute('''
+CREATE TABLE IF NOT EXISTS incorrect_notes (
+    id INTEGER PRIMARY KEY,
+    day INTEGER,
+    meaning TEXT,
+    user_answer TEXT,
+    correct_answer TEXT
+)
+''')
+
+conn.commit()
+
+# 사용자 진행 상태 불러오기
+c.execute("SELECT last_day FROM progress WHERE id = 1")
+result = c.fetchone()
+
+if result:
+    last_day = result[0]
+else:
+    last_day = 1
+    c.execute("INSERT INTO progress (id, last_day) VALUES (1, ?)", (last_day,))
+    conn.commit()
+
+# 현재 학습 일자 결정
+if 'day' not in st.session_state:
+    st.session_state.day = last_day
+
+day = st.session_state.day
 
 # CSV 파일 로드
-def load_words(file_path):
-    return pd.read_csv(file_path)
+file_path = 'words.csv'  # CSV 파일 경로
+words_df = pd.read_csv(file_path)
+
+# 설정: 하루에 외울 단어 수
+words_per_day = 20
 
 # 학습 일자에 따른 인덱스 범위 계산
 def get_words_index(day, words_per_day):
@@ -20,29 +66,44 @@ def get_review_words(words, review_count=10):
         return words.sample(review_count)
     return words
 
+# 오늘의 단어 인덱스 범위 계산
+start_idx, end_idx = get_words_index(day, words_per_day)
+
+# 오늘의 단어들 선택
+today_words = words_df.iloc[start_idx:end_idx]
+
+# 복습용 단어 추가 (Day 2부터)
+if day > 1:
+    previous_day_words = words_df.iloc[get_words_index(day-1, words_per_day)[0]:get_words_index(day-1, words_per_day)[1]]
+    review_words = get_review_words(previous_day_words)
+    today_words = pd.concat([today_words, review_words])
+
 # 오답 노트 저장
 def save_incorrect_answers(day, incorrect_answers):
-    file_path = f"incorrect_day_{day}.csv"
-    df = pd.DataFrame(incorrect_answers, columns=['Meaning', 'Your Answer', 'Correct Answer'])
-    df.to_csv(file_path, index=False)
+    for meaning, user_answer, correct_word in incorrect_answers:
+        c.execute('''
+            INSERT INTO incorrect_notes (day, meaning, user_answer, correct_answer)
+            VALUES (?, ?, ?, ?)
+        ''', (day, meaning, user_answer, correct_word))
+    conn.commit()
 
 # 오답 노트 로드
 def load_incorrect_answers(day):
-    file_path = f"incorrect_day_{day}.csv"
-    if os.path.exists(file_path):
-        return pd.read_csv(file_path)
+    c.execute("SELECT meaning, user_answer, correct_answer FROM incorrect_notes WHERE day = ?", (day,))
+    result = c.fetchall()
+    if result:
+        return pd.DataFrame(result, columns=['Meaning', 'Your Answer', 'Correct Answer'])
     else:
         return None
 
 # 성취도 기록 저장
 def save_progress(day, score, total):
-    if 'progress' not in st.session_state:
-        st.session_state.progress = {}
-    
-    st.session_state.progress[day] = {
-        'score': score,
-        'total': total
-    }
+    c.execute('''
+        UPDATE progress
+        SET last_day = ?
+        WHERE id = 1
+    ''', (day,))
+    conn.commit()
 
 # 성취도 그래프 시각화
 def plot_progress():
@@ -68,11 +129,13 @@ def run_test(words):
     incorrect_answers = []
 
     for index, row in words.iterrows():
-        meaning = row['meaning']
-        correct_word = row['word']
+        meaning = row['meaning']  # 한국어 뜻 (문제)
+        correct_word = row['word']  # 정답 (영어 단어)
+
+        # 문제(뜻)를 표시하고, 사용자로부터 답변(영어 단어)을 입력받음
         user_answer = st.text_input(f"{meaning}", key=f"word_{index}")
 
-        if st.button(f"제출-{index}"):
+        if st.button(f"제출-{index}"):  # 제출 버튼
             if user_answer.lower() == correct_word.lower():
                 st.write("정답!")
                 score += 1
@@ -84,31 +147,6 @@ def run_test(words):
 
 # 메인 프로그램
 st.title("영어 단어 테스트 for 준혁")
-
-# CSV 파일 경로 지정
-file_path = 'words.csv'  # CSV 파일 경로
-words_df = load_words(file_path)
-
-# 설정: 하루에 외울 단어 수
-words_per_day = 20
-
-# 현재 학습 일자 결정
-if 'day' not in st.session_state:
-    st.session_state.day = 1
-
-day = st.session_state.day
-
-# 오늘의 단어 인덱스 범위 계산
-start_idx, end_idx = get_words_index(day, words_per_day)
-
-# 오늘의 단어들 선택
-today_words = words_df.iloc[start_idx:end_idx]
-
-# 복습용 단어 추가 (Day 2부터)
-if day > 1:
-    previous_day_words = words_df.iloc[get_words_index(day-1, words_per_day)[0]:get_words_index(day-1, words_per_day)[1]]
-    review_words = get_review_words(previous_day_words)
-    today_words = pd.concat([today_words, review_words])
 
 if not today_words.empty:
     st.write(f"오늘은 Day {day}에 대한 학습입니다.")
@@ -125,19 +163,18 @@ if not today_words.empty:
         else:
             st.write("오답이 없습니다. 잘했어요!")
         
-        # 성취도 저장
-        save_progress(day, score, total)
+        # 성취도 저장 및 다음 Day로 이동
+        save_progress(day + 1, score, total)
+        st.session_state.day += 1
 
 # 이전 Day로 이동 버튼 추가
 if st.button("이전 Day로 이동") and day > 1:
-    st.session_state.day -= 1  # 이전 날로 이동
-    # 페이지 새로고침 대신 쿼리 파라미터로 업데이트
+    st.session_state.day -= 1
     st.experimental_set_query_params(day=st.session_state.day)
 
 # 다음 Day로 이동 버튼 추가
 if st.button("다음 Day로 이동"):
-    st.session_state.day += 1  # 다음 날로 이동
-    # 페이지 새로고침 대신 쿼리 파라미터로 업데이트
+    st.session_state.day += 1
     st.experimental_set_query_params(day=st.session_state.day)
 
 # 성취도 그래프 시각화
@@ -146,10 +183,13 @@ plot_progress()
 
 # 오답 노트 열람
 st.write("이전 학습 일자의 오답 노트를 확인하세요:")
-for past_day in range(1, day + 1):
-    if st.button(f"Day {past_day} 오답 노트 보기"):
-        incorrect_df = load_incorrect_answers(past_day)
+days_with_notes = c.execute("SELECT DISTINCT day FROM incorrect_notes").fetchall()
+for past_day in days_with_notes:
+    if st.button(f"Day {past_day[0]} 오답 노트 보기"):
+        incorrect_df = load_incorrect_answers(past_day[0])
         if incorrect_df is not None:
             st.write(incorrect_df)
         else:
-            st.write(f"Day {past_day}에 대한 오답 노트가 없습니다.")
+            st.write(f"Day {past_day[0]}에 대한 오답 노트가 없습니다.")
+
+conn.close()
