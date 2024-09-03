@@ -70,7 +70,7 @@ def run_test(words):
     for index, row in words.iterrows():
         meaning = row['meaning']
         correct_word = row['word']
-        user_answer = st.text_input(f"'{meaning}'", key=f"word_{index}")
+        user_answer = st.text_input(f"{meaning}", key=f"word_{index}")
 
         if st.button(f"제출-{index}"):
             if user_answer.lower() == correct_word.lower():
@@ -83,7 +83,7 @@ def run_test(words):
     return incorrect_answers, score, len(words)
 
 # 메인 프로그램
-st.title("영어 단어 테스트 for 준혁")
+st.title("영어 단어 테스트")
 
 # CSV 파일 경로 지정
 file_path = 'words.csv'  # CSV 파일 경로
@@ -127,7 +127,16 @@ if not today_words.empty:
         
         # 성취도 저장
         save_progress(day, score, total)
-        st.session_state.day += 1  # 다음 날로 이동
+
+# 이전 Day로 이동 버튼 추가
+if st.button("이전 Day로 이동") and day > 1:
+    st.session_state.day -= 1  # 이전 날로 이동
+    st.experimental_rerun()  # 페이지를 리프레시하여 이전 Day로 이동
+
+# 다음 Day로 이동 버튼 추가
+if st.button("다음 Day로 이동"):
+    st.session_state.day += 1  # 다음 날로 이동
+    st.experimental_rerun()  # 페이지를 리프레시하여 다음 Day로 이동
 
 # 성취도 그래프 시각화
 st.write("성취도 그래프를 확인하세요:")
@@ -135,7 +144,7 @@ plot_progress()
 
 # 오답 노트 열람
 st.write("이전 학습 일자의 오답 노트를 확인하세요:")
-for past_day in range(1, day):
+for past_day in range(1, day + 1):
     if st.button(f"Day {past_day} 오답 노트 보기"):
         incorrect_df = load_incorrect_answers(past_day)
         if incorrect_df is not None:
