@@ -38,6 +38,10 @@ if 'day' not in st.session_state:
         c.execute("INSERT INTO progress (id, last_day) VALUES (1, ?)", (st.session_state.day,))
     conn.commit()
 
+# 성취도 초기화
+if 'progress' not in st.session_state:
+    st.session_state.progress = {}
+
 day = st.session_state.day
 
 # CSV 파일 로드
@@ -87,7 +91,8 @@ def load_incorrect_answers(day):
         return None
 
 # 성취도 기록 저장
-def save_progress(day):
+def save_progress(day, score, total):
+    st.session_state.progress[day] = {'score': score, 'total': total}
     c.execute('''
         UPDATE progress
         SET last_day = ?
@@ -97,8 +102,7 @@ def save_progress(day):
 
 # 성취도 그래프 시각화
 def plot_progress():
-    c.execute("SELECT last_day FROM progress WHERE id = 1")
-    days = [row[0] for row in c.fetchall()]
+    days = sorted(st.session_state.progress.keys())
     if days:
         scores = [st.session_state.progress.get(day, {}).get('score', 0) for day in days]
         totals = [st.session_state.progress.get(day, {}).get('total', 0) for day in days]
@@ -143,11 +147,11 @@ if not today_words.empty:
         
         if st.button("다음 Day로 이동"):
             st.session_state.day += 1
-            save_progress(st.session_state.day)
+            save_progress(st.session_state.day, score, total)
 
 if st.button("이전 Day로 이동") and day > 1:
     st.session_state.day -= 1
-    save_progress(st.session_state.day)
+    save_progress(st.session_state.day, score, total)
 
 # 성취도 그래프 시각화
 st.write("성취도 그래프를 확인하세요:")
