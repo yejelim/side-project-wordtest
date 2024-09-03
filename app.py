@@ -94,7 +94,7 @@ def load_incorrect_answers(day):
         return None
 
 # 성취도 기록 저장
-def save_progress(day, score, total):
+def save_progress(day):
     c.execute('''
         UPDATE progress
         SET last_day = ?
@@ -114,7 +114,7 @@ def plot_progress():
         plt.plot(days, totals, color='blue', marker='o', linestyle='--')
         plt.xlabel('Day')
         plt.ylabel('Score')
-        plt.title('Score Graph')
+        plt.title('성취도 그래프')
         plt.ylim(0, max(totals) + 5)
         plt.xticks(days)
         plt.yticks(range(0, max(totals) + 1, 5))
@@ -126,18 +126,17 @@ def run_test(words):
     incorrect_answers = []
 
     for index, row in words.iterrows():
-        meaning = row['meaning']  # 한국어 뜻 (문제)
-        correct_word = row['word']  # 정답 (영어 단어)
+        meaning = row['meaning']
+        correct_word = row['word']
 
-        # 문제(뜻)를 표시하고, 사용자로부터 답변(영어 단어)을 입력받음
-        user_answer = st.text_input(f"{meaning}", key=f"word_{day}_{index}")  # 각 Day별로 고유한 key 설정
+        user_answer = st.text_input(f"{meaning}", key=f"word_{day}_{index}")
 
-        if st.button(f"제출-{day}-{index}"):  # 제출 버튼
+        if st.button(f"제출-{day}-{index}"):
             if user_answer.lower() == correct_word.lower():
                 st.write("정답!")
                 score += 1
             else:
-                st.write(f"오답! 다시 생각해보세요.")
+                st.write(f"오답! 정답은 '{correct_word}'입니다.")
                 incorrect_answers.append((meaning, user_answer, correct_word))
 
     return incorrect_answers, score, len(words)
@@ -158,17 +157,15 @@ if not today_words.empty:
                 st.write(f"{meaning}: 당신의 답변 - '{user_answer}', 정답 - '{correct_word}'")
             save_incorrect_answers(day, incorrect_answers)
         
-        # 오답노트 확인 후에만 "다음 Day로 이동" 버튼 표시
         if st.button("다음 Day로 이동"):
-            # 성취도 저장 및 다음 Day로 이동
-            save_progress(day + 1, score, total)
             st.session_state.day += 1
-            st.experimental_rerun()  # 페이지를 새로고침하여 Day 이동을 반영
+            save_progress(st.session_state.day)
+            st.experimental_rerun()
 
 # 이전 Day로 이동 버튼 추가
 if st.button("이전 Day로 이동") and day > 1:
     st.session_state.day -= 1
-    st.experimental_rerun()  # 페이지를 새로고침하여 Day 이동을 반영
+    st.experimental_rerun()
 
 # 성취도 그래프 시각화
 st.write("성취도 그래프를 확인하세요:")
