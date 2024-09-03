@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS incorrect_notes (
 
 conn.commit()
 
-# 현재 학습 일자 결정
+# 현재 학습 일자 설정
 if 'day' not in st.session_state:
     c.execute("SELECT last_day FROM progress WHERE id = 1")
     result = c.fetchone()
@@ -37,7 +37,10 @@ if 'day' not in st.session_state:
         c.execute("INSERT INTO progress (id, last_day) VALUES (1, ?)", (st.session_state.day,))
     conn.commit()
 
-day = st.session_state.day
+# 사용자가 직접 Day를 선택
+day = st.number_input("학습할 Day를 선택하세요:", min_value=1, max_value=100, value=st.session_state.day, step=1)
+
+st.session_state.day = day
 
 # CSV 파일 로드
 file_path = 'words.csv'  # CSV 파일 경로
@@ -53,7 +56,7 @@ def get_words_index(day, words_per_day):
     return start_idx, end_idx
 
 # 오늘의 단어 인덱스 범위 계산
-start_idx, end_idx = get_words_index(day, words_per_day)
+start_idx, end_idx = get_words_index(st.session_state.day, words_per_day)
 today_words = words_df.iloc[start_idx:end_idx]
 
 # 복습용 단어 추가 (Day 2부터)
@@ -119,7 +122,7 @@ def run_test(words):
                 st.write("정답!")
                 score += 1
             else:
-                st.write(f"오답! 정답은 '{correct_word}'입니다.")
+                st.write(f"오답! 다시 생각해보세요.")
                 incorrect_answers.append((meaning, user_answer, correct_word))
 
     return incorrect_answers, score, len(words)
@@ -140,15 +143,7 @@ if not today_words.empty:
                 st.write(f"{meaning}: 당신의 답변 - '{user_answer}', 정답 - '{correct_word}'")
             save_incorrect_answers(day, incorrect_answers)
         
-        if st.button("다음 Day로 이동"):
-            st.session_state.day += 1
-            save_progress(st.session_state.day)
-            st.experimental_rerun()  # 페이지 새로고침
-
-if st.button("이전 Day로 이동") and day > 1:
-    st.session_state.day -= 1
-    save_progress(st.session_state.day)
-    st.experimental_rerun()  # 페이지 새로고침
+        save_progress(day)
 
 # 성취도 그래프 시각화
 st.write("성취도 그래프를 확인하세요:")
