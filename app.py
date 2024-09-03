@@ -83,7 +83,7 @@ def run_test(words):
     return incorrect_answers, score, len(words)
 
 # 메인 프로그램
-st.title("영어 단어 테스트")
+st.title("영어 단어 테스트 for 준혁")
 
 # CSV 파일 경로 지정
 file_path = 'words.csv'  # CSV 파일 경로
@@ -131,12 +131,14 @@ if not today_words.empty:
 # 이전 Day로 이동 버튼 추가
 if st.button("이전 Day로 이동") and day > 1:
     st.session_state.day -= 1  # 이전 날로 이동
-    st.experimental_rerun()  # 페이지를 리프레시하여 이전 Day로 이동
+    # 페이지 새로고침 대신 쿼리 파라미터로 업데이트
+    st.experimental_set_query_params(day=st.session_state.day)
 
 # 다음 Day로 이동 버튼 추가
 if st.button("다음 Day로 이동"):
     st.session_state.day += 1  # 다음 날로 이동
-    st.experimental_rerun()  # 페이지를 리프레시하여 다음 Day로 이동
+    # 페이지 새로고침 대신 쿼리 파라미터로 업데이트
+    st.experimental_set_query_params(day=st.session_state.day)
 
 # 성취도 그래프 시각화
 st.write("성취도 그래프를 확인하세요:")
