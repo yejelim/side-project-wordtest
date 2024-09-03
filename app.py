@@ -63,8 +63,8 @@ def get_words_index(day, words_per_day):
 # 전날 학습한 단어 중 랜덤으로 10개 선택
 def get_review_words(words, review_count=10):
     if len(words) > review_count:
-        return words.sample(review_count)
-    return words
+        return words.sample(review_count).reset_index(drop=True)
+    return words.reset_index(drop=True)
 
 # 오늘의 단어 인덱스 범위 계산
 start_idx, end_idx = get_words_index(day, words_per_day)
@@ -76,7 +76,7 @@ today_words = words_df.iloc[start_idx:end_idx]
 if day > 1:
     previous_day_words = words_df.iloc[get_words_index(day-1, words_per_day)[0]:get_words_index(day-1, words_per_day)[1]]
     review_words = get_review_words(previous_day_words)
-    today_words = pd.concat([today_words, review_words])
+    today_words = pd.concat([today_words, review_words]).reset_index(drop=True)
 
 # 오답 노트 저장
 def save_incorrect_answers(day, incorrect_answers):
@@ -117,7 +117,7 @@ def plot_progress():
         plt.plot(days, totals, color='blue', marker='o', linestyle='--')
         plt.xlabel('Day')
         plt.ylabel('Score')
-        plt.title('성취도 그래프')
+        plt.title('Socre Graph')
         plt.ylim(0, max(totals) + 5)
         plt.xticks(days)
         plt.yticks(range(0, max(totals) + 1, 5))
@@ -133,9 +133,9 @@ def run_test(words):
         correct_word = row['word']  # 정답 (영어 단어)
 
         # 문제(뜻)를 표시하고, 사용자로부터 답변(영어 단어)을 입력받음
-        user_answer = st.text_input(f"{meaning}", key=f"word_{index}")
+        user_answer = st.text_input(f"{meaning}", key=f"word_{day}_{index}")  # 각 Day별로 고유한 key 설정
 
-        if st.button(f"제출-{index}"):  # 제출 버튼
+        if st.button(f"제출-{day}-{index}"):  # 제출 버튼
             if user_answer.lower() == correct_word.lower():
                 st.write("정답!")
                 score += 1
@@ -161,16 +161,17 @@ if not today_words.empty:
                 st.write(f"{meaning}: 당신의 답변 - '{user_answer}', 정답 - '{correct_word}'")
             save_incorrect_answers(day, incorrect_answers)
         
-        if st.button("오답노트 확인 후 다음 Day로 이동"):
+        # 오답노트 확인 후에만 "다음 Day로 이동" 버튼 표시
+        if st.button("다음 Day로 이동"):
             # 성취도 저장 및 다음 Day로 이동
             save_progress(day + 1, score, total)
             st.session_state.day += 1
-            st.experimental_set_query_params(day=st.session_state.day)
+            st.experimental_rerun()  # 페이지를 새로고침하여 Day 이동을 반영
 
 # 이전 Day로 이동 버튼 추가
 if st.button("이전 Day로 이동") and day > 1:
     st.session_state.day -= 1
-    st.experimental_set_query_params(day=st.session_state.day)
+    st.experimental_rerun()  # 페이지를 새로고침하여 Day 이동을 반영
 
 # 성취도 그래프 시각화
 st.write("성취도 그래프를 확인하세요:")
