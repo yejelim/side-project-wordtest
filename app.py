@@ -27,20 +27,16 @@ CREATE TABLE IF NOT EXISTS incorrect_notes (
 
 conn.commit()
 
-# 사용자 진행 상태 불러오기
-c.execute("SELECT last_day FROM progress WHERE id = 1")
-result = c.fetchone()
-
-if result:
-    last_day = result[0]
-else:
-    last_day = 1
-    c.execute("INSERT INTO progress (id, last_day) VALUES (1, ?)", (last_day,))
-    conn.commit()
-
 # 현재 학습 일자 결정
 if 'day' not in st.session_state:
-    st.session_state.day = last_day
+    c.execute("SELECT last_day FROM progress WHERE id = 1")
+    result = c.fetchone()
+    if result:
+        st.session_state.day = result[0]
+    else:
+        st.session_state.day = 1
+        c.execute("INSERT INTO progress (id, last_day) VALUES (1, ?)", (st.session_state.day,))
+    conn.commit()
 
 day = st.session_state.day
 
@@ -57,19 +53,16 @@ def get_words_index(day, words_per_day):
     end_idx = start_idx + words_per_day
     return start_idx, end_idx
 
-# 전날 학습한 단어 중 랜덤으로 10개 선택
+# 오늘의 단어 인덱스 범위 계산
+start_idx, end_idx = get_words_index(day, words_per_day)
+today_words = words_df.iloc[start_idx:end_idx]
+
+# 복습용 단어 추가 (Day 2부터)
 def get_review_words(words, review_count=10):
     if f'review_words_day_{day}' not in st.session_state:
         st.session_state[f'review_words_day_{day}'] = words.sample(review_count).reset_index(drop=True)
     return st.session_state[f'review_words_day_{day}']
 
-# 오늘의 단어 인덱스 범위 계산
-start_idx, end_idx = get_words_index(day, words_per_day)
-
-# 오늘의 단어들 선택
-today_words = words_df.iloc[start_idx:end_idx]
-
-# 복습용 단어 추가 (Day 2부터)
 if day > 1:
     previous_day_words = words_df.iloc[get_words_index(day-1, words_per_day)[0]:get_words_index(day-1, words_per_day)[1]]
     review_words = get_review_words(previous_day_words)
@@ -104,21 +97,12 @@ def save_progress(day):
 
 # 성취도 그래프 시각화
 def plot_progress():
-    if 'progress' in st.session_state:
-        days = sorted(st.session_state.progress.keys())
-        scores = [st.session_state.progress[day]['score'] for day in days]
-        totals = [st.session_state.progress[day]['total'] for day in days]
-        
-        plt.figure(figsize=(10, 5))
-        plt.bar(days, scores, color='green')
-        plt.plot(days, totals, color='blue', marker='o', linestyle='--')
-        plt.xlabel('Day')
-        plt.ylabel('Score')
-        plt.title('성취도 그래프')
-        plt.ylim(0, max(totals) + 5)
-        plt.xticks(days)
-        plt.yticks(range(0, max(totals) + 1, 5))
-        st.pyplot(plt)
+    c.execute("SELECT last_day FROM progress WHERE id = 1")
+    days = [row[0] for row in c.fetchall()]
+    if days:
+        scores = [st.session_state.progress.get(day, {}).get('score', 0) for day in days]
+        totals = [st.session_state.progress.get(day, {}).get('total', 0) for day in days]
+        st.bar_chart(pd.DataFrame({"Score": scores, "Total": totals}, index=days))
 
 # 테스트 실행
 def run_test(words):
@@ -160,12 +144,10 @@ if not today_words.empty:
         if st.button("다음 Day로 이동"):
             st.session_state.day += 1
             save_progress(st.session_state.day)
-            st.experimental_rerun()
 
-# 이전 Day로 이동 버튼 추가
 if st.button("이전 Day로 이동") and day > 1:
     st.session_state.day -= 1
-    st.experimental_rerun()
+    save_progress(st.session_state.day)
 
 # 성취도 그래프 시각화
 st.write("성취도 그래프를 확인하세요:")
