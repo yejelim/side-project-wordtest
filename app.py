@@ -62,9 +62,10 @@ def get_words_index(day, words_per_day):
 
 # 전날 학습한 단어 중 랜덤으로 10개 선택
 def get_review_words(words, review_count=10):
-    if len(words) > review_count:
-        return words.sample(review_count).reset_index(drop=True)
-    return words.reset_index(drop=True)
+    # 복습 문제를 한 번만 선택하고 이후에는 고정된 문제 세트를 사용
+    if f'review_words_day_{day}' not in st.session_state:
+        st.session_state[f'review_words_day_{day}'] = words.sample(review_count).reset_index(drop=True)
+    return st.session_state[f'review_words_day_{day}']
 
 # 오늘의 단어 인덱스 범위 계산
 start_idx, end_idx = get_words_index(day, words_per_day)
@@ -117,7 +118,7 @@ def plot_progress():
         plt.plot(days, totals, color='blue', marker='o', linestyle='--')
         plt.xlabel('Day')
         plt.ylabel('Score')
-        plt.title('Socre Graph')
+        plt.title('성취도 그래프')
         plt.ylim(0, max(totals) + 5)
         plt.xticks(days)
         plt.yticks(range(0, max(totals) + 1, 5))
