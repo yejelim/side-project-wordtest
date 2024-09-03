@@ -160,21 +160,16 @@ if not today_words.empty:
             for meaning, user_answer, correct_word in incorrect_answers:
                 st.write(f"{meaning}: 당신의 답변 - '{user_answer}', 정답 - '{correct_word}'")
             save_incorrect_answers(day, incorrect_answers)
-        else:
-            st.write("오답이 없습니다. 잘했어요!")
         
-        # 성취도 저장 및 다음 Day로 이동
-        save_progress(day + 1, score, total)
-        st.session_state.day += 1
+        if st.button("오답노트 확인 후 다음 Day로 이동"):
+            # 성취도 저장 및 다음 Day로 이동
+            save_progress(day + 1, score, total)
+            st.session_state.day += 1
+            st.experimental_set_query_params(day=st.session_state.day)
 
 # 이전 Day로 이동 버튼 추가
 if st.button("이전 Day로 이동") and day > 1:
     st.session_state.day -= 1
-    st.experimental_set_query_params(day=st.session_state.day)
-
-# 다음 Day로 이동 버튼 추가
-if st.button("다음 Day로 이동"):
-    st.session_state.day += 1
     st.experimental_set_query_params(day=st.session_state.day)
 
 # 성취도 그래프 시각화
