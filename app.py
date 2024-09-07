@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
+import random
 
 # SQLite 데이터베이스 설정
 conn = sqlite3.connect('progress.db')
@@ -65,6 +66,19 @@ selected_day = st.selectbox("학습할 Day를 선택하세요:", day_options)
 def is_review_day(selected_day):
     return "Review Day" in selected_day
 
+# 복습용 단어 추가 (이전 Day의 단어 중 10개를 고정)
+def get_review_words_from_previous_day(day):
+    if day <= 1:
+        return pd.DataFrame()  # Day 1일 경우 전날이 없으므로 빈 데이터프레임 반환
+
+    if f'review_words_day_{day}' not in st.session_state:
+        # 전날 단어 20개 중 10개를 랜덤으로 선택
+        start_idx, end_idx = (day - 2) * words_per_day, (day - 1) * words_per_day
+        previous_day_words = words_df.iloc[start_idx:end_idx]
+        selected_review_words = previous_day_words.sample(n=10).reset_index(drop=True)
+        st.session_state[f'review_words_day_{day}'] = selected_review_words
+    return st.session_state[f'review_words_day_{day}']
+
 # 리뷰 Day용 단어 인덱스 범위 계산 (이전 5일 동안 학습한 단어를 테스트)
 def get_review_words_range(review_week, words_per_day):
     start_idx = (review_week - 1) * 5 * words_per_day
@@ -83,6 +97,10 @@ else:
     day = int(selected_day.split(' ')[1])
     start_idx, end_idx = (day - 1) * words_per_day, day * words_per_day
     today_words = words_df.iloc[start_idx:end_idx]
+
+    # 이전 Day의 20개 중 10개의 복습 단어 추가
+    previous_day_review_words = get_review_words_from_previous_day(day)
+    today_words = pd.concat([today_words, previous_day_review_words]).reset_index(drop=True)
 
 # 오답 노트 저장
 def save_incorrect_answers(day, incorrect_answers):
