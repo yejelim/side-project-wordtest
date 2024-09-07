@@ -106,35 +106,42 @@ def plot_progress():
         
         st.bar_chart(pd.DataFrame({"Score": scores, "Total": totals}, index=days))
 
-# 테스트 실행
+# 테스트 실행 (문제 제출 버튼 제거)
 def run_test(words):
     score = 0
     incorrect_answers = []
+    user_answers = {}
 
     for index, row in words.iterrows():
         meaning = row['meaning']
         correct_word = row['word']
 
-        user_answer = st.text_input(f"{meaning}", key=f"word_{day}_{index}")
+        user_answers[index] = st.text_input(f"{meaning}", key=f"word_{day}_{index}")
 
-        if st.button(f"제출-{day}-{index}"):
-            if user_answer.lower() == correct_word.lower():
-                st.write("정답!")
-                score += 1
-            else:
-                st.write(f"오답! 다시 생각해보세요.")
-                incorrect_answers.append((meaning, user_answer, correct_word))
-
-    return incorrect_answers, score, len(words)
+    return user_answers
 
 # 메인 프로그램
 st.title("영어 단어 테스트 for 준혁")
 
 if not today_words.empty:
     st.write(f"오늘은 Day {day}에 대한 학습입니다.")
-    incorrect_answers, score, total = run_test(today_words)
+    user_answers = run_test(today_words)
 
     if st.button("결과 확인"):
+        score = 0
+        incorrect_answers = []
+        for index, row in today_words.iterrows():
+            meaning = row['meaning']
+            correct_word = row['word']
+            user_answer = user_answers[index]
+
+            if user_answer.lower() == correct_word.lower():
+                score += 1
+            else:
+                incorrect_answers.append((meaning, user_answer, correct_word))
+
+        # 결과 표시
+        total = len(today_words)
         st.write(f"총 {total} 문제 중 {score} 문제 맞췄습니다.")
         
         if incorrect_answers:
