@@ -97,16 +97,7 @@ def save_progress(day):
     ''', (day,))
     conn.commit()
 
-# 성취도 그래프 시각화
-def plot_progress():
-    if 'progress' in st.session_state:
-        days = sorted(st.session_state.progress.keys())
-        scores = [st.session_state.progress[day]['score'] for day in days]
-        totals = [st.session_state.progress[day]['total'] for day in days]
-        
-        st.bar_chart(pd.DataFrame({"Score": scores, "Total": totals}, index=days))
-
-# 테스트 실행 (문제 제출 버튼 제거)
+# 테스트 실행
 def run_test(words):
     score = 0
     incorrect_answers = []
@@ -151,10 +142,6 @@ if not today_words.empty:
             save_incorrect_answers(day, incorrect_answers)
         
         save_progress(day)
-
-# 성취도 그래프 시각화
-st.write("성취도 그래프를 확인하세요:")
-plot_progress()
 
 # 오답 노트 열람
 st.write("이전 학습 일자의 오답 노트를 확인하세요:")
