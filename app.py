@@ -55,17 +55,32 @@ def get_words_index(day, words_per_day):
     end_idx = start_idx + words_per_day
     return start_idx, end_idx
 
-# 오늘의 단어 인덱스 범위 계산
-start_idx, end_idx = get_words_index(st.session_state.day, words_per_day)
-today_words = words_df.iloc[start_idx:end_idx]
+# '리뷰 Day' 확인 (별도로 추가되는 리뷰 day)
+def is_special_review_day():
+    return st.session_state.get('special_day', False)
 
-# 복습용 단어 추가 (Day 2부터)
+# 리뷰 Day용 단어 인덱스 범위 계산 (이전 5일 동안 학습한 단어를 테스트)
+def get_review_words_range(day, words_per_day):
+    start_idx, end_idx = get_words_index(day-4, words_per_day)
+    return start_idx, end_idx + words_per_day * 5
+
+# 오늘의 단어 인덱스 범위 계산
+if is_special_review_day():
+    # 리뷰 데이일 경우
+    start_idx, end_idx = get_review_words_range(day, words_per_day)
+    review_words_df = words_df.iloc[start_idx:end_idx]
+    today_words = review_words_df.sample(frac=1).reset_index(drop=True)  # 랜덤으로 섞음
+else:
+    start_idx, end_idx = get_words_index(st.session_state.day, words_per_day)
+    today_words = words_df.iloc[start_idx:end_idx]
+
+# 복습용 단어 추가 (Day 2부터, 리뷰 day는 복습 제외)
 def get_review_words(words, review_count=10):
     if f'review_words_day_{day}' not in st.session_state:
         st.session_state[f'review_words_day_{day}'] = words.sample(review_count).reset_index(drop=True)
     return st.session_state[f'review_words_day_{day}']
 
-if day > 1:
+if day > 1 and not is_special_review_day():
     previous_day_words = words_df.iloc[get_words_index(day-1, words_per_day)[0]:get_words_index(day-1, words_per_day)[1]]
     review_words = get_review_words(previous_day_words)
     today_words = pd.concat([today_words, review_words]).reset_index(drop=True)
@@ -114,8 +129,12 @@ def run_test(words):
 # 메인 프로그램
 st.title("영어 단어 테스트 for 준혁")
 
-if not today_words.empty:
+if is_special_review_day():
+    st.write(f"오늘은 '리뷰 데이'입니다! 최근 5일 동안 학습한 단어들을 복습하세요.")
+else:
     st.write(f"오늘은 Day {day}에 대한 학습입니다.")
+
+if not today_words.empty:
     user_answers = run_test(today_words)
 
     if st.button("결과 확인"):
@@ -142,6 +161,11 @@ if not today_words.empty:
             save_incorrect_answers(day, incorrect_answers)
         
         save_progress(day)
+
+# 리뷰 데이 설정
+if day % 5 == 0 and st.button("리뷰 데이 시작"):
+    st.session_state.special_day = True
+    st.experimental_rerun()
 
 # 오답 노트 열람
 st.write("이전 학습 일자의 오답 노트를 확인하세요:")
