@@ -89,9 +89,16 @@ def get_review_words_range(review_week, words_per_day):
 if is_review_day(selected_day):
     # 리뷰 데이일 경우
     review_week = int(selected_day.split('-')[1].split('주차')[0])
-    start_idx, end_idx = get_review_words_range(review_week, words_per_day)
-    review_words_df = words_df.iloc[start_idx:end_idx]
-    today_words = review_words_df.sample(frac=1).reset_index(drop=True)  # 랜덤으로 섞음
+
+    # 리뷰 Day에 해당하는 단어가 세션 상태에 없다면 저장
+    if f'review_words_week_{review_week}' not in st.session_state:
+        start_idx, end_idx = get_review_words_range(review_week, words_per_day)
+        review_words_df = words_df.iloc[start_idx:end_idx]
+        st.session_state[f'review_words_week_{review_week}'] = review_words_df.sample(frac=1).reset_index(drop=True)
+    
+    # 세션에서 고정된 단어 목록 불러오기
+    today_words = st.session_state[f'review_words_week_{review_week}']
+
 else:
     # 일반 학습 Day일 경우
     day = int(selected_day.split(' ')[1])
