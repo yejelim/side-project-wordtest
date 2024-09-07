@@ -38,26 +38,27 @@ if 'day' not in st.session_state:
     conn.commit()
 
 # CSV 파일 로드
-file_path = 'words.csv'  # CSV 파일 경로
+file_path = 'words.csv'  # CSV 파일 경로 (2000개의 단어가 들어있는 파일)
 words_df = pd.read_csv(file_path)
 
 # 설정: 하루에 외울 단어 수
 words_per_day = 20
+max_day = 100  # 최대 학습일수 (2000개의 단어 기준)
 
-# 학습 Day와 리뷰 Day를 선택하는 범위 확장
-def generate_day_options(current_day):
+# 학습 Day와 리뷰 Day를 선택하는 범위 확장 (100일 + 20주차까지 리뷰 데이)
+def generate_day_options():
     options = []
     review_week = 1
-    for day in range(1, current_day + 1):
+    for day in range(1, max_day + 1):
         options.append(f"Day {day}")
-        if day % 5 == 0:
+        if day % 5 == 0:  # 5일마다 리뷰 데이 추가
             options.append(f"Review Day-{review_week}주차")
             review_week += 1
     return options
 
 # 사용자가 Day 또는 Review Day를 선택
 current_day = st.session_state.day
-day_options = generate_day_options(current_day)
+day_options = generate_day_options()
 selected_day = st.selectbox("학습할 Day를 선택하세요:", day_options)
 
 # 선택된 Day가 리뷰 데이인지 확인
@@ -120,7 +121,8 @@ def run_test(words):
         meaning = row['meaning']
         correct_word = row['word']
 
-        user_answers[index] = st.text_input(f"{meaning}", key=f"word_{selected_day}_{index}")
+        # 고유한 key 값으로 입력 필드 생성
+        user_answers[index] = st.text_input(f"{meaning}", key=f"{selected_day}_word_{index}")
 
     return user_answers
 
@@ -135,7 +137,8 @@ else:
 if not today_words.empty:
     user_answers = run_test(today_words)
 
-    if st.button("결과 확인"):
+    # 고유한 key 값을 가진 버튼 생성
+    if st.button(f"{selected_day} 결과 확인"):
         score = 0
         incorrect_answers = []
         for index, row in today_words.iterrows():
@@ -161,14 +164,11 @@ if not today_words.empty:
         save_progress(current_day)
 
 # 오답 노트 열람
-st.write("이전 학습 일자의 오답 노트를 확인하세요:")
-days_with_notes = c.execute("SELECT DISTINCT day FROM incorrect_notes").fetchall()
-for past_day in days_with_notes:
-    if st.button(f"Day {past_day[0]} 오답 노트 보기"):
-        incorrect_df = load_incorrect_answers(past_day[0])
-        if incorrect_df is not None:
-            st.write(incorrect_df)
-        else:
-            st.write(f"Day {past_day[0]}에 대한 오답 노트가 없습니다.")
+st.write(f"{selected_day} 오답 노트를 확인하세요:")
+incorrect_df = load_incorrect_answers(selected_day)
+if incorrect_df is not None:
+    st.write(incorrect_df)
+else:
+    st.write(f"{selected_day}에 대한 오답 노트가 없습니다.")
 
 conn.close()
